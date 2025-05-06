@@ -1,0 +1,13 @@
+--- a/strategy.rs
++++ b/strategy.rs
+@@
+-                                victim_gas_price = pending_tx.tx.gas_price.unwrap_or_default();
+-                                should_add = victim_gas_price >= new_block.base_fee;
++                                victim_gas_price = pending_tx.tx.gas_price.unwrap_or_default();
++                                // Accept any tx whose (legacy) gas price is ≥ 80 % of base-fee.
++                                let threshold = new_block.base_fee * U256::from(8) / U256::from(10);
++                                should_add = victim_gas_price >= threshold;
+@@
+-                                should_add = victim_gas_price >= new_block.base_fee;
++                                let threshold = new_block.base_fee * U256::from(8) / U256::from(10);
++                                should_add = victim_gas_price >= threshold;

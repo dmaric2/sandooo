@@ -1,0 +1,14 @@
+--- a/simulation.rs
++++ b/simulation.rs
+@@
+-    if tx_kind != TxKind::Swap {
++    // Trace when (a) not a swap, 𝗼𝗿 (b) *is* a swap but the address
++    // isn’t one of the routers we explicitly recognise.
++    let need_trace = tx_kind != TxKind::Swap
++        || pending_tx
++            .tx
++            .to
++            .map(|addr| !is_known_router(&addr))
++            .unwrap_or(true);
++
++    if need_trace {

@@ -5,6 +5,8 @@ import "forge-std/console.sol";
 
 import "../src/Sandooo.sol";
 
+/// @title IERC20
+/// @notice ERC20 interface for testing purposes.
 interface IERC20 {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(
@@ -13,25 +15,34 @@ interface IERC20 {
         uint256 value
     );
 
+    /// @notice Returns the name of the token.
     function name() external view returns (string memory);
 
+    /// @notice Returns the symbol of the token.
     function symbol() external view returns (string memory);
 
+    /// @notice Returns the number of decimals used to get its user representation.
     function decimals() external view returns (uint8);
 
+    /// @notice Returns the total supply of the token.
     function totalSupply() external view returns (uint256);
 
+    /// @notice Returns the amount of tokens owned by `account`.
     function balanceOf(address account) external view returns (uint256);
 
+    /// @notice Moves `amount` tokens from the caller's account to `to`.
     function transfer(address to, uint256 value) external returns (bool);
 
+    /// @notice Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}.
     function allowance(
         address owner,
         address spender
     ) external view returns (uint256);
 
+    /// @notice Sets `amount` as the allowance of `spender` over the caller's tokens.
     function approve(address spender, uint256 value) external returns (bool);
 
+    /// @notice Moves `amount` tokens from `from` to `to` using the allowance mechanism.
     function transferFrom(
         address from,
         address to,
@@ -39,23 +50,35 @@ interface IERC20 {
     ) external returns (bool);
 }
 
+/// @title IWETH
+/// @notice WETH interface for deposit/withdraw testing.
 interface IWETH is IERC20 {
+    /// @notice Deposits ETH and mints WETH.
     function deposit() external payable;
 
+    /// @notice Burns WETH and withdraws ETH.
     function withdraw(uint amount) external;
 }
 
+/// @title IUniswapV2Pair
+/// @notice Uniswap V2 pair interface for reserve queries in tests.
 interface IUniswapV2Pair {
+    /// @notice Returns the first token in the pair.
     function token0() external returns (address);
 
+    /// @notice Returns the second token in the pair.
     function token1() external returns (address);
 
+    /// @notice Returns the reserves of the pair.
     function getReserves()
         external
         view
         returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
 }
 
+/// @title SandoooTest
+/// @notice Foundry test contract for Sandooo sandwich bot contract.
+/// @dev Contains integration tests for deposit, withdrawal, and recovery of tokens and ETH.
 // anvil --fork-url http://localhost:8545 --port 2000
 // forge test --fork-url http://localhost:2000 --match-contract SandoooTest -vv
 contract SandoooTest is Test {

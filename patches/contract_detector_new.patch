@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/contract_detector.rs
++use ethers::types::H160;
++
++/// Tiny synchronous heuristics the classifier can call without an async provider.
++///
++/// In this first refactor we return `false` so the code compiles cleanly.
++/// Extend these with real byte-code / selector checks once you have an
++/// async-capable context (e.g. by caching `provider.get_code` results
++/// elsewhere and exposing them here).
++pub fn is_pool_contract(_addr: &H160) -> bool {
++    // TODO: implement real detection (token0() / token1() calls, code-size test…)
++    false
++}
++
++pub fn is_router_like(_addr: &H160) -> bool {
++    // TODO: implement real detection (large byte-code, delegate-call pattern…)
++    false
++}

@@ -1,7 +1,10 @@
+/// Sandwich attack opportunity discovery (appetizer phase).
+///
+/// Scans pending transactions for sandwich opportunities and simulates potential attacks.
 use anyhow::Result;
 use ethers::{
     providers::{Provider, Ws},
-    types::{H256, U256},
+    types::{H160, H256, U256},
 };
 use log::warn;
 use std::{collections::HashMap, sync::Arc};
@@ -11,6 +14,18 @@ use crate::common::streams::NewBlock;
 use crate::common::utils::{is_weth, MainCurrency};
 use crate::sandwich::simulation::{BatchSandwich, PendingTxInfo, Sandwich, SwapDirection};
 
+/// Scans a pending transaction for sandwich opportunities, simulates, and records promising sandwiches.
+///
+/// # Parameters
+/// * `provider`: Ethereum provider.
+/// * `new_block`: Current block info.
+/// * `tx_hash`: Hash of the pending transaction.
+/// * `victim_gas_price`: Gas price of the victim transaction.
+/// * `pending_txs`: Map of all pending transactions.
+/// * `promising_sandwiches`: Mutable map to store promising sandwiches.
+///
+/// # Returns
+/// * `Result<()>` - Ok if successful.
 pub async fn appetizer(
     provider: &Arc<Provider<Ws>>,
     new_block: &NewBlock,
@@ -61,12 +76,20 @@ pub async fn appetizer(
         let mut sandwich = Sandwich {
             amount_in: small_amount_in,
             swap_info: info.clone(),
-            victim_tx: victim_tx.clone(),
+            victim_tx: victim_tx.clone(), // Clone for this struct
             optimized_sandwich: None,
         };
 
+        // Create a batch sandwich
         let batch_sandwich = BatchSandwich {
-            sandwiches: vec![sandwich.clone()],
+            sandwiches: vec![Sandwich {
+                victim_tx: victim_tx.clone(), // Clone for this struct too
+                amount_in: small_amount_in,
+                swap_info: info.clone(),
+                optimized_sandwich: None,
+            }],
+            swap_info_vec: vec![info.clone()],
+            flashloan_asset: H160::zero(), // Default to zero address as flashloan asset
         };
 
         let simulated_sandwich = batch_sandwich

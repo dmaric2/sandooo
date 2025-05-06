@@ -1,0 +1,27 @@
+{
+  "name": "sandooo-bot",
+  "version": "1.0.0",
+  "description": "Sandooo trading bot with Aave flashloan integration",
+  "main": "index.js",
+  "scripts": {
+    "deploy:v3": "hardhat run scripts/deploy_sandooo_v3.js --network mainnet"
+  },
+  "keywords": [
+    "ethereum",
+    "defi",
+    "flashloan",
+    "aave",
+    "trading"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.2",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
+    "hardhat": "^2.13.0"
+  }
+}

@@ -1,0 +1,22 @@
+--- a/routers.rs
++++ b/routers.rs
+@@
+         set.insert(H160::from_str("0xDEF171Fe48CF0115B1d80b88dc8...B59176FEe57").unwrap()); // ParaSwap Augustus Swapper V5
++
++        // ░░ NEW: aggregators / routers observed since the original release ░░
++        set.insert(H160::from_str("0x25d887CE7A35172c62febFd67A1856F20faEbB00").unwrap()); // Pepe / meme aggregator
++        // 0x v5
++        set.insert(H160::from_str("0xDEF1ABE32c034e558Cdd535791643C58a13aCC10").unwrap());
++        // MetaMask swap router
++        set.insert(H160::from_str("0x881D40237659C251811CEC9c364ef91dC08D300C").unwrap());
+@@
+         set.insert([0x7c,0x02,0x52,0x00]); // swap (legacy v4)
++
++        // ░░ NEW function selectors ░░
++        set.insert([0xb8,0x97,0xda,0xeb]); // pepeSwap(address,address)
++        set.insert([0x67,0x74,0xb8,0x49]); // unoswapV5 (1inch)
++        set.insert([0x12,0xaa,0x3c,0xaf]); // swap (1inch V4/V5)
++        set.insert([0x2e,0xb2,0xc2,0xd6]); // simpleSwap (MetaMask)
+         set
+     };
+ }

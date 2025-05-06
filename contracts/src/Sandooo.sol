@@ -1,16 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/// @title Sandooo
+/// @notice Core contract for executing sandwich attacks and managing funds for the Sandooo bot.
+/// @dev Allows the owner to recover tokens and ETH, and to execute custom calldata for sandwiching.
 contract Sandooo {
+    /// @notice The owner of the contract.
     address public owner;
 
+    /// @dev ERC20 transfer function selector.
     bytes4 internal constant TOKEN_TRANSFER_ID = 0xa9059cbb;
+    /// @dev Uniswap V2 swap function selector.
     bytes4 internal constant V2_SWAP_ID = 0x022c0d9f;
 
+    /// @notice Sets the contract owner to the deployer.
     constructor() {
         owner = msg.sender;
     }
 
+    /// @notice Allows the owner to recover ERC20 tokens or ETH from the contract.
+    /// @param token The address of the token to recover (use address(0) for ETH).
+    /// @param amount The amount to recover.
     function recoverToken(address token, uint256 amount) public {
         require(msg.sender == owner, "NOT_OWNER");
 
@@ -33,8 +43,11 @@ contract Sandooo {
         }
     }
 
+    /// @notice Accepts ETH transfers.
     receive() external payable {}
 
+    /// @notice Fallback for custom calldata; restricted to owner. Used for sandwich attack execution.
+    /// @dev Validates block number and decodes calldata for sandwiching logic. Only callable by owner.
     fallback() external payable {
         require(msg.sender == owner, "NOT_OWNER");
 

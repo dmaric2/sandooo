@@ -1,0 +1,6 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@
+ lazy_static = "1.4"
++itertools   = "0.12"   # already used in pools.rs
++# No extra deps required for the stubbed contract_detector; add ethers-contract etc.

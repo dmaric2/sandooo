@@ -1,3 +1,6 @@
+/// Execution logic for constructing, simulating, and submitting bundles and transactions for sandwich attacks.
+///
+/// Provides abstractions for interacting with Ethereum builders, relays, and managing bundle requests.
 use anyhow::Result;
 use ethers::prelude::*;
 use ethers::providers::{Middleware, Provider};
@@ -13,19 +16,35 @@ use url::Url;
 use crate::common::abi::Abi;
 use crate::common::constants::Env;
 
+/// Represents a bundle of transactions for a sandwich attack.
 #[derive(Debug, Clone)]
 pub struct SandoBundle {
+    /// The frontrun transaction.
     pub frontrun_tx: TypedTransaction,
+    /// The victim transactions.
     pub victim_txs: Vec<Transaction>,
+    /// The backrun transaction.
     pub backrun_tx: TypedTransaction,
 }
 
+/// Response from a builder after sending a bundle.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SendBundleResponse {
+    /// The hash of the submitted bundle.
     pub bundle_hash: BundleHash,
 }
 
+/// Sends a bundle to a builder relay and returns the builder name and response.
+///
+/// # Parameters
+/// * `builder`: String - The builder name.
+/// * `relay_url`: Url - The relay endpoint.
+/// * `identity`: LocalWallet - The signing identity.
+/// * `bundle`: BundleRequest - The bundle to send.
+///
+/// # Returns
+/// * `Result<(String, Option<SendBundleResponse>)>` - Builder name and response.
 pub async fn send_bundle(
     builder: String,
     relay_url: Url,
@@ -37,17 +56,32 @@ pub async fn send_bundle(
     Ok((builder, result))
 }
 
+/// Executor for managing bundle construction, simulation, and submission.
 pub struct Executor {
+    /// The Ethereum provider.
     pub provider: Arc<Provider<Ws>>,
+    /// ABI utilities.
     pub abi: Abi,
+    /// The owner's signing wallet.
     pub owner: LocalWallet,
+    /// The identity signing wallet for relays.
     pub identity: LocalWallet,
+    /// The bot's address.
     pub bot_address: H160,
+    /// URLs for different builders.
     pub builder_urls: HashMap<String, Url>,
+    /// The client for signing and submitting bundles.
     pub client: SignerMiddleware<FlashbotsMiddleware<Arc<Provider<Ws>>, LocalWallet>, LocalWallet>,
 }
 
 impl Executor {
+    /// Creates a new executor instance.
+    ///
+    /// # Parameters
+    /// * `provider`: Arc<Provider<Ws>> - The Ethereum provider.
+    ///
+    /// # Returns
+    /// * `Self` - The new executor instance.
     pub fn new(provider: Arc<Provider<Ws>>) -> Self {
         let env = Env::new();
         let abi = Abi::new();
@@ -127,6 +161,10 @@ impl Executor {
         }
     }
 
+    /// Retrieves common fields for transaction construction.
+    ///
+    /// # Returns
+    /// * `Result<(H160, U256, U64)>` - The owner's address, nonce, and chain ID.
     pub async fn _common_fields(&self) -> Result<(H160, U256, U64)> {
         let nonce = self
             .provider
@@ -135,6 +173,13 @@ impl Executor {
         Ok((self.owner.address(), U256::from(nonce), U64::from(1)))
     }
 
+    /// Creates a transfer-in transaction.
+    ///
+    /// # Parameters
+    /// * `amount_in`: U256 - The amount to transfer.
+    ///
+    /// # Returns
+    /// * `Result<TypedTransaction>` - The transfer-in transaction.
     pub async fn transfer_in_tx(&self, amount_in: U256) -> Result<TypedTransaction> {
         let tx = {
             let mut inner: TypedTransaction =
@@ -148,6 +193,16 @@ impl Executor {
         Ok(tx)
     }
 
+    /// Creates a transfer-out transaction.
+    ///
+    /// # Parameters
+    /// * `token`: H160 - The token address.
+    /// * `amount`: U256 - The amount to transfer.
+    /// * `max_priority_fee_per_gas`: U256 - The maximum priority fee per gas.
+    /// * `max_fee_per_gas`: U256 - The maximum fee per gas.
+    ///
+    /// # Returns
+    /// * `Result<TypedTransaction>` - The transfer-out transaction.
     pub async fn transfer_out_tx(
         &self,
         token: H160,
@@ -172,6 +227,18 @@ impl Executor {
         }))
     }
 
+    /// Converts a transaction to a typed transaction.
+    ///
+    /// # Parameters
+    /// * `calldata`: Bytes - The transaction calldata.
+    /// * `access_list`: AccessList - The transaction access list.
+    /// * `gas_limit`: u64 - The transaction gas limit.
+    /// * `nonce`: U256 - The transaction nonce.
+    /// * `max_priority_fee_per_gas`: U256 - The maximum priority fee per gas.
+    /// * `max_fee_per_gas`: U256 - The maximum fee per gas.
+    ///
+    /// # Returns
+    /// * `Result<TypedTransaction>` - The typed transaction.
     pub async fn to_typed_transaction(
         &self,
         calldata: Bytes,
@@ -197,6 +264,22 @@ impl Executor {
         }))
     }
 
+    /// Creates a sandwich bundle.
+    ///
+    /// # Parameters
+    /// * `victim_txs`: Vec<Transaction> - The victim transactions.
+    /// * `front_calldata`: Bytes - The frontrun transaction calldata.
+    /// * `back_calldata`: Bytes - The backrun transaction calldata.
+    /// * `front_access_list`: AccessList - The frontrun transaction access list.
+    /// * `back_access_list`: AccessList - The backrun transaction access list.
+    /// * `front_gas_limit`: u64 - The frontrun transaction gas limit.
+    /// * `back_gas_limit`: u64 - The backrun transaction gas limit.
+    /// * `base_fee`: U256 - The base fee.
+    /// * `max_priority_fee_per_gas`: U256 - The maximum priority fee per gas.
+    /// * `max_fee_per_gas`: U256 - The maximum fee per gas.
+    ///
+    /// # Returns
+    /// * `Result<SandoBundle>` - The sandwich bundle.
     pub async fn create_sando_bundle(
         &self,
         victim_txs: Vec<Transaction>,
@@ -245,6 +328,15 @@ impl Executor {
         })
     }
 
+    /// Converts a transaction to a bundle request.
+    ///
+    /// # Parameters
+    /// * `tx`: TypedTransaction - The transaction to convert.
+    /// * `block_number`: U64 - The block number.
+    /// * `retries`: usize - The number of retries.
+    ///
+    /// # Returns
+    /// * `Result<BundleRequest>` - The bundle request.
     pub async fn to_bundle_request(
         &self,
         tx: TypedTransaction,
@@ -260,6 +352,15 @@ impl Executor {
         Ok(bundle)
     }
 
+    /// Converts a sandwich bundle to a bundle request.
+    ///
+    /// # Parameters
+    /// * `sando_bundle`: SandoBundle - The sandwich bundle to convert.
+    /// * `block_number`: U64 - The block number.
+    /// * `retries`: usize - The number of retries.
+    ///
+    /// # Returns
+    /// * `Result<BundleRequest>` - The bundle request.
     pub async fn to_sando_bundle_request(
         &self,
         sando_bundle: SandoBundle,
@@ -295,6 +396,10 @@ impl Executor {
         Ok(bundle)
     }
 
+    /// Simulates a bundle.
+    ///
+    /// # Parameters
+    /// * `bundle`: &BundleRequest - The bundle to simulate.
     pub async fn simulate_bundle(&self, bundle: &BundleRequest) {
         match self.client.inner().simulate_bundle(bundle).await {
             Ok(simulated) => {
@@ -306,6 +411,13 @@ impl Executor {
         }
     }
 
+    /// Broadcasts a bundle to multiple builders.
+    ///
+    /// # Parameters
+    /// * `bundle`: BundleRequest - The bundle to broadcast.
+    ///
+    /// # Returns
+    /// * `Result<HashMap<String, SendBundleResponse>>` - A map of builder names to responses.
     pub async fn broadcast_bundle(
         &self,
         bundle: BundleRequest,

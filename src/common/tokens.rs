@@ -1,3 +1,6 @@
+/// Token discovery, metadata, and caching utilities for DeFi protocols.
+///
+/// Provides types and functions for loading, caching, and querying token metadata from on-chain and CSV data.
 use anyhow::Result;
 use csv::StringRecord;
 use ethers::abi::parse_abi;
@@ -12,17 +15,25 @@ use crate::common::bytecode::REQUEST_BYTECODE;
 use crate::common::pools::Pool;
 use crate::common::utils::create_new_wallet;
 
+/// Represents a token with metadata and pool associations.
 #[derive(Debug, Clone)]
 pub struct Token {
+    /// Unique token ID.
     pub id: i64,
+    /// Token contract address.
     pub address: H160,
+    /// Token name.
     pub name: String,
+    /// Token symbol.
     pub symbol: String,
+    /// Token decimals.
     pub decimals: u8,
+    /// Associated pool IDs.
     pub pool_ids: Vec<i64>, // refers to the "id" field of Pool struct
 }
 
 impl From<StringRecord> for Token {
+    /// Converts a CSV record into a Token struct.
     fn from(record: StringRecord) -> Self {
         Self {
             id: record.get(0).unwrap().parse().unwrap(),
@@ -36,6 +47,7 @@ impl From<StringRecord> for Token {
 }
 
 impl Token {
+    /// Returns a tuple representing the token for CSV caching.
     pub fn cache_row(&self) -> (i64, String, String, String, u8) {
         (
             self.id,
@@ -47,15 +59,29 @@ impl Token {
     }
 }
 
-// for eth_call response
+/// Metadata returned from eth_call for a token.
 #[derive(Debug, Clone)]
 pub struct TokenInfo {
+    /// Token contract address.
     pub address: H160,
+    /// Token name.
     pub name: String,
+    /// Token symbol.
     pub symbol: String,
+    /// Token decimals.
     pub decimals: u8,
 }
 
+/// Loads all tokens from the blockchain and caches them locally.
+///
+/// # Parameters
+/// * `provider`: &Arc<Provider<Ws>> - The Ethereum provider.
+/// * `block_number`: U64 - The block to scan.
+/// * `pools`: &Vec<Pool> - Pools to scan for tokens.
+/// * `prev_pool_id`: i64 - Last processed pool ID.
+///
+/// # Returns
+/// * `Result<HashMap<H160, Token>>` - Map of token address to Token struct.
 pub async fn load_all_tokens(
     provider: &Arc<Provider<Ws>>,
     block_number: U64,
@@ -163,6 +189,15 @@ pub async fn load_all_tokens(
     Ok(tokens_map)
 }
 
+/// Gets token metadata via eth_call for a single token.
+///
+/// # Parameters
+/// * `provider`: &Arc<Provider<Ws>> - The Ethereum provider.
+/// * `block_number`: BlockNumber - The block to query.
+/// * `token_address`: H160 - The token contract address.
+///
+/// # Returns
+/// * `Result<TokenInfo>` - Token metadata.
 pub async fn get_token_info(
     provider: &Arc<Provider<Ws>>,
     block_number: BlockNumber,
@@ -211,6 +246,15 @@ pub async fn get_token_info(
     Ok(token_info)
 }
 
+/// Wrapper for get_token_info for use with tokio tasks.
+///
+/// # Parameters
+/// * `provider`: Arc<Provider<Ws>> - The Ethereum provider.
+/// * `block`: BlockNumber - The block to query.
+/// * `token_address`: H160 - The token contract address.
+///
+/// # Returns
+/// * `Result<TokenInfo>` - Token metadata.
 pub async fn get_token_info_wrapper(
     provider: Arc<Provider<Ws>>,
     block: BlockNumber,
@@ -219,6 +263,15 @@ pub async fn get_token_info_wrapper(
     get_token_info(&provider, block, token_address).await
 }
 
+/// Gets metadata for multiple tokens in parallel.
+///
+/// # Parameters
+/// * `provider`: Arc<Provider<Ws>> - The Ethereum provider.
+/// * `block`: BlockNumber - The block to query.
+/// * `tokens`: &Vec<H160> - Token contract addresses.
+///
+/// # Returns
+/// * `Result<HashMap<H160, TokenInfo>>` - Map of token address to TokenInfo.
 pub async fn get_token_info_multi(
     provider: Arc<Provider<Ws>>,
     block: BlockNumber,

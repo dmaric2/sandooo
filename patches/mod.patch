@@ -1,0 +1,7 @@
+--- a/mod.rs
++++ b/mod.rs
+--- a/mod.rs
++++ b/mod.rs
+@@
+ pub mod utils;
++pub mod contract_detector;   //  <-- NEW

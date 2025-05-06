@@ -1,3 +1,6 @@
+/// Utility functions for logging, address conversion, token queries, and currency classification in the Sandooo project.
+///
+/// Provides helpers for logging, base fee calculations, access list conversions, wallet creation, token queries, and currency classification.
 use anyhow::Result;
 use ethers::core::rand::thread_rng;
 use ethers::prelude::*;
@@ -18,6 +21,10 @@ use std::sync::Arc;
 
 use crate::common::constants::*;
 
+/// Sets up a colored logger for the project.
+///
+/// # Returns
+/// * `Result<()>` - Ok if successful.
 pub fn setup_logger() -> Result<()> {
     let colors = ColoredLevelConfig {
         trace: Color::Cyan,
@@ -45,6 +52,15 @@ pub fn setup_logger() -> Result<()> {
     Ok(())
 }
 
+/// Calculates the next block's base fee according to EIP-1559 rules.
+///
+/// # Parameters
+/// * `gas_used`: U256 - Gas used in the block.
+/// * `gas_limit`: U256 - Gas limit of the block.
+/// * `base_fee_per_gas`: U256 - Current base fee.
+///
+/// # Returns
+/// * `U256` - Next block's base fee.
 pub fn calculate_next_block_base_fee(
     gas_used: U256,
     gas_limit: U256,
@@ -75,6 +91,13 @@ pub fn calculate_next_block_base_fee(
     new_base_fee + seed
 }
 
+/// Converts a revm access list to ethers-rs format.
+///
+/// # Parameters
+/// * `access_list`: Vec<(B160, Vec<rU256>)> - revm access list.
+///
+/// # Returns
+/// * `AccessList` - ethers-rs access list.
 pub fn access_list_to_ethers(access_list: Vec<(B160, Vec<rU256>)>) -> AccessList {
     AccessList::from(
         access_list
@@ -90,6 +113,13 @@ pub fn access_list_to_ethers(access_list: Vec<(B160, Vec<rU256>)>) -> AccessList
     )
 }
 
+/// Converts an ethers-rs access list to revm format.
+///
+/// # Parameters
+/// * `access_list`: AccessList - ethers-rs access list.
+///
+/// # Returns
+/// * `Vec<(B160, Vec<rU256>)>` - revm access list.
 pub fn access_list_to_revm(access_list: AccessList) -> Vec<(B160, Vec<rU256>)> {
     access_list
         .0
@@ -113,6 +143,15 @@ abigen!(
     ]"#,
 );
 
+/// Gets the ERC-20 token balance for an address.
+///
+/// # Parameters
+/// * `provider`: Arc<Provider<Ws>> - The Ethereum provider.
+/// * `owner`: H160 - The address to query.
+/// * `token`: H160 - The token contract address.
+///
+/// # Returns
+/// * `Result<U256>` - The token balance.
 pub async fn get_token_balance(
     provider: Arc<Provider<Ws>>,
     owner: H160,
@@ -123,35 +162,81 @@ pub async fn get_token_balance(
     Ok(token_balance)
 }
 
+/// Creates a new random wallet and returns its address.
+///
+/// # Returns
+/// * `(LocalWallet, H160)` - The wallet and its address.
 pub fn create_new_wallet() -> (LocalWallet, H160) {
     let wallet = LocalWallet::new(&mut thread_rng());
     let address = wallet.address();
     (wallet, address)
 }
 
+/// Converts a static string Ethereum address to H160.
+///
+/// # Parameters
+/// * `str_address`: &'static str - Address as string.
+///
+/// # Returns
+/// * `H160` - The address as H160.
 pub fn to_h160(str_address: &'static str) -> H160 {
     H160::from_str(str_address).unwrap()
 }
 
+/// Checks if a token address is WETH.
+///
+/// # Parameters
+/// * `token_address`: H160 - Token address.
+///
+/// # Returns
+/// * `bool` - True if WETH.
 pub fn is_weth(token_address: H160) -> bool {
     token_address == to_h160(WETH)
 }
 
+/// Checks if a token address is a main currency (WETH, USDT, USDC, WBTC, DAI, LINK, MKR).
+///
+/// # Parameters
+/// * `token_address`: H160 - Token address.
+///
+/// # Returns
+/// * `bool` - True if main currency.
 pub fn is_main_currency(token_address: H160) -> bool {
-    let main_currencies = vec![to_h160(WETH), to_h160(USDT), to_h160(USDC)];
+    let main_currencies = vec![
+        to_h160(WETH),
+        to_h160(USDT),
+        to_h160(USDC),
+        to_h160(WBTC),
+        to_h160(DAI),
+        to_h160(LINK),
+        to_h160(MKR),
+    ];
     main_currencies.contains(&token_address)
 }
 
+/// Main currency enum for classification.
 #[derive(Debug, Clone)]
 pub enum MainCurrency {
+    /// Wrapped Ether (WETH).
     WETH,
+    /// Tether (USDT).
     USDT,
+    /// USD Coin (USDC).
     USDC,
-
+    /// Wrapped Bitcoin (WBTC).
+    WBTC,
+    /// Dai Stablecoin (DAI).
+    DAI,
+    /// Chainlink Token (LINK).
+    LINK,
+    /// Maker (MKR).
+    MKR,
+    /// Default (fallback to WETH).
     Default, // Pairs that aren't WETH/Stable pairs. Default to WETH for now
 }
 
 impl MainCurrency {
+    /// Creates a MainCurrency from an address.
     pub fn new(address: H160) -> Self {
         if address == to_h160(WETH) {
             MainCurrency::WETH
@@ -159,43 +244,103 @@ impl MainCurrency {
             MainCurrency::USDT
         } else if address == to_h160(USDC) {
             MainCurrency::USDC
+        } else if address == to_h160(WBTC) {
+            MainCurrency::WBTC
+        } else if address == to_h160(DAI) {
+            MainCurrency::DAI
+        } else if address == to_h160(LINK) {
+            MainCurrency::LINK
+        } else if address == to_h160(MKR) {
+            MainCurrency::MKR
         } else {
             MainCurrency::Default
         }
     }
 
+    /// Returns the decimals for the main currency.
     pub fn decimals(&self) -> u8 {
         match self {
             MainCurrency::WETH => WETH_DECIMALS,
-            MainCurrency::USDT => USDC_DECIMALS,
+            MainCurrency::USDT => USDT_DECIMALS,
             MainCurrency::USDC => USDC_DECIMALS,
+            MainCurrency::WBTC => WBTC_DECIMALS,
+            MainCurrency::DAI => DAI_DECIMALS,
+            MainCurrency::LINK => LINK_DECIMALS,
+            MainCurrency::MKR => MKR_DECIMALS,
             MainCurrency::Default => WETH_DECIMALS,
         }
     }
 
+    /// Returns the storage slot for the main currency.
     pub fn balance_slot(&self) -> i32 {
         match self {
             MainCurrency::WETH => WETH_BALANCE_SLOT,
             MainCurrency::USDT => USDT_BALANCE_SLOT,
             MainCurrency::USDC => USDC_BALANCE_SLOT,
+            MainCurrency::WBTC => WBTC_BALANCE_SLOT,
+            MainCurrency::DAI => DAI_BALANCE_SLOT,
+            MainCurrency::LINK => LINK_BALANCE_SLOT,
+            MainCurrency::MKR => MKR_BALANCE_SLOT,
             MainCurrency::Default => WETH_BALANCE_SLOT,
         }
     }
 
-    /*
-    We score the currencies by importance
-    WETH has the highest importance, and USDT, USDC in the following order
-    */
+    /// Returns the weight (importance) of the main currency.
     pub fn weight(&self) -> u8 {
         match self {
-            MainCurrency::WETH => 3,
-            MainCurrency::USDT => 2,
-            MainCurrency::USDC => 1,
-            MainCurrency::Default => 3, // default is WETH
+            MainCurrency::WETH => 7,    // Highest priority
+            MainCurrency::WBTC => 6,    // High priority for BTC
+            MainCurrency::USDT => 5,    // Stablecoin priority
+            MainCurrency::USDC => 4,    // Stablecoin priority
+            MainCurrency::DAI => 3,     // Stablecoin priority
+            MainCurrency::LINK => 2,    // Lower priority for LINK
+            MainCurrency::MKR => 1,     // Lowest priority for MKR
+            MainCurrency::Default => 7, // default is WETH
         }
+    }
+
+    /// Returns the Chainlink price feed address for the token
+    pub fn chainlink_feed(&self) -> Option<&'static str> {
+        match self {
+            MainCurrency::WETH => Some(CHAINLINK_ETH_USD),
+            MainCurrency::USDT => Some(CHAINLINK_USDT_USD),
+            MainCurrency::USDC => Some(CHAINLINK_USDC_USD),
+            MainCurrency::WBTC => Some(CHAINLINK_BTC_USD),
+            MainCurrency::DAI => Some(CHAINLINK_DAI_USD),
+            MainCurrency::LINK => Some(CHAINLINK_LINK_USD),
+            MainCurrency::MKR => Some(CHAINLINK_MKR_USD),
+            MainCurrency::Default => None,
+        }
+    }
+
+    /// Returns the token address as a string
+    pub fn address_str(&self) -> &'static str {
+        match self {
+            MainCurrency::WETH => WETH,
+            MainCurrency::USDT => USDT,
+            MainCurrency::USDC => USDC,
+            MainCurrency::WBTC => WBTC,
+            MainCurrency::DAI => DAI,
+            MainCurrency::LINK => LINK,
+            MainCurrency::MKR => MKR,
+            MainCurrency::Default => WETH,
+        }
+    }
+
+    /// Returns the token address as H160
+    pub fn address(&self) -> H160 {
+        H160::from_str(self.address_str()).unwrap()
     }
 }
 
+/// Determines which token is the main currency and which is the target in a pair.
+///
+/// # Parameters
+/// * `token0`: H160 - First token address.
+/// * `token1`: H160 - Second token address.
+///
+/// # Returns
+/// * `Option<(H160, H160)>` - (main, target) or None if neither is main.
 pub fn return_main_and_target_currency(token0: H160, token1: H160) -> Option<(H160, H160)> {
     let token0_supported = is_main_currency(token0);
     let token1_supported = is_main_currency(token1);

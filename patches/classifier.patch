@@ -1,0 +1,24 @@
+--- a/classifier.rs
++++ b/classifier.rs
+@@
+-use ethers::types::Transaction;
+-use crate::common::routers::{is_known_router, is_known_swap_selector};
++use ethers::types::Transaction;
++use crate::common::routers::{is_known_router, is_known_swap_selector};
++use crate::common::contract_detector::{is_pool_contract, is_router_like};
+@@
+-    // 4. Fallback to Other
+-    TxKind::Other
++    // 4. Heuristic fallback: inspect unknown contracts we’ve never seen before.
++    if let Some(to_addr) = tx.to {
++        // a) looks like a router we don’t have in the static list
++        if is_router_like(&to_addr) {
++            return TxKind::Swap;
++        }
++        // b) direct interaction with a pair contract
++        if is_pool_contract(&to_addr) {
++            return TxKind::Swap;
++        }
++    }
++    TxKind::Other
+ }

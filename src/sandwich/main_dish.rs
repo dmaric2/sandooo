@@ -1,3 +1,6 @@
+/// Sandwich attack execution and bundle submission (main dish phase).
+///
+/// Handles scoring, selection, and execution of optimized sandwich attacks, including bundle construction and submission to relays.
 use anyhow::Result;
 use bounded_vec_deque::BoundedVecDeque;
 use ethers::{
@@ -15,6 +18,15 @@ use crate::common::streams::NewBlock;
 use crate::common::utils::get_token_balance;
 use crate::sandwich::simulation::{BatchSandwich, PendingTxInfo, Sandwich};
 
+/// Queries token balances for a list of tokens and an owner address.
+///
+/// # Parameters
+/// * `provider`: Ethereum provider.
+/// * `owner`: Address to check balances for.
+/// * `tokens`: List of token addresses.
+///
+/// # Returns
+/// * `HashMap<H160, U256>` - Map of token address to balance.
 pub async fn get_token_balances(
     provider: &Arc<Provider<Ws>>,
     owner: H160,
@@ -30,6 +42,16 @@ pub async fn get_token_balances(
     token_balances
 }
 
+/// Sends a sandwich bundle request to the relays.
+///
+/// # Parameters
+/// * `executor`: Transaction executor.
+/// * `sando_bundle`: Constructed sandwich bundle.
+/// * `block_number`: Block number for submission.
+/// * `alert`: Alert system for notifications.
+///
+/// # Returns
+/// * `Result<()>` - Ok if successful.
 pub async fn send_sando_bundle_request(
     executor: &Executor,
     sando_bundle: SandoBundle,
@@ -53,17 +75,41 @@ pub async fn send_sando_bundle_request(
     Ok(())
 }
 
+/// Ingredients for a sandwich attack, used in scoring and selection.
 #[derive(Debug, Clone)]
 pub struct Ingredients {
+    /// Transaction hash of the sandwich opportunity.
     pub tx_hash: H256,
+    /// Pair address of the sandwich opportunity.
     pub pair: H160,
+    /// Main currency address of the sandwich opportunity.
     pub main_currency: H160,
+    /// Amount in of the sandwich opportunity.
     pub amount_in: U256,
+    /// Maximum revenue of the sandwich opportunity.
     pub max_revenue: U256,
+    /// Score of the sandwich opportunity.
     pub score: f64,
+    /// Sandwich object containing the opportunity's details.
     pub sandwich: Sandwich,
 }
 
+/// Executes the main sandwich attack logic: sorts, scores, and submits bundles.
+///
+/// # Parameters
+/// * `provider`: Ethereum provider.
+/// * `alert`: Alert system for notifications.
+/// * `executor`: Transaction executor.
+/// * `new_block`: Current block info.
+/// * `owner`: Owner address.
+/// * `bot_address`: Bot's address.
+/// * `bribe_pct`: Percentage of profit to use as bribe.
+/// * `promising_sandwiches`: Map of promising sandwiches.
+/// * `simulated_bundle_ids`: Mutable deque of simulated bundle IDs.
+/// * `pending_txs`: Map of all pending transactions.
+///
+/// # Returns
+/// * `Result<()>` - Ok if successful.
 pub async fn main_dish(
     provider: &Arc<Provider<Ws>>,
     alert: &Alert,
@@ -150,6 +196,7 @@ pub async fn main_dish(
     for i in 0..plate.len() {
         let mut balances = bot_balances.clone();
         let mut sandwiches = Vec::new();
+        let mut all_swap_infos = Vec::new();
 
         for j in 0..(i + 1) {
             let ingredient = &plate[j];
@@ -165,9 +212,14 @@ pub async fn main_dish(
             balances.insert(main_currency, new_balance);
 
             sandwiches.push(final_sandwich);
+            all_swap_infos.push(ingredient.sandwich.swap_info.clone());
         }
 
-        let final_batch_sandwich = BatchSandwich { sandwiches };
+        let final_batch_sandwich = BatchSandwich {
+            sandwiches,
+            swap_info_vec: all_swap_infos.clone(),
+            flashloan_asset: H160::zero(), // Default to zero address as flashloan asset
+        };
 
         let bundle_id = final_batch_sandwich.bundle_id();
 
